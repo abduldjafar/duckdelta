@@ -10,7 +10,6 @@ pub trait Engine {
     async fn delta_table_mapping(&self, delta_path: &str, duck_table: &str) -> Result<(), Error>;
 }
 
-
 pub struct DuckDB {
     connection: Arc<Mutex<Option<Connection>>>,
 }
@@ -20,7 +19,7 @@ impl DuckDB {
         let mut conn = Connection::open_in_memory()?;
         conn.execute_batch("INSTALL parquet; LOAD parquet; INSTALL delta; LOAD delta;")?;
         conn.execute_batch("CREATE TABLE delta_mapping (delta_path TEXT, duck_table TEXT)")?;
-        
+
         Ok(Self {
             connection: Arc::new(Mutex::new(Some(conn))),
         })
@@ -56,9 +55,6 @@ impl DuckDB {
     }
 }
 
-
-
-
 #[async_trait]
 impl Engine for DuckDB {
     async fn sql(&self, sql: &str) -> Result<Vec<RecordBatch>, Error> {
@@ -89,7 +85,6 @@ impl Engine for DuckDB {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,7 +109,9 @@ mod tests {
     #[tokio::test]
     async fn delta_table_mapping() -> Result<(), Error> {
         let duck_engine = DuckDB::new().await?;
-        duck_engine.delta_table_mapping("delta_path", "duck_table").await?;
+        duck_engine
+            .delta_table_mapping("delta_path", "duck_table")
+            .await?;
         let result = duck_engine.sql("SELECT * FROM delta_mapping").await;
 
         assert!(result.is_ok(), "Query should execute successfully");
@@ -124,23 +121,34 @@ mod tests {
 
     #[tokio::test]
     async fn parse_table_names() -> Result<(), Error> {
-
         let sql = r#"
             select * from delta_scan('s3://some/delta/table/with/auth') y left join delta_scan('s3://some/delta/table/with/auth') b  on a.id = b.id;
             "#;
-        
+
         let sql2 = r#"
             select * from delta_scan('s3://some/delta/table/with/auth') left join delta_scan('s3://some/delta/table/with/auth')  on a.id = b.id;
             "#;
-        
+
         let duck_engine = DuckDB::new().await?;
 
         let tables = duck_engine.parse_table(sql);
         let tables2 = duck_engine.parse_table(sql2);
 
-        assert_eq!(tables,vec!["delta_scan('s3://some/delta/table/with/auth')","delta_scan('s3://some/delta/table/with/auth')"]);
-        assert_eq!(tables2,vec!["delta_scan('s3://some/delta/table/with/auth')","delta_scan('s3://some/delta/table/with/auth')"]);
-        
+        assert_eq!(
+            tables,
+            vec![
+                "delta_scan('s3://some/delta/table/with/auth')",
+                "delta_scan('s3://some/delta/table/with/auth')"
+            ]
+        );
+        assert_eq!(
+            tables2,
+            vec![
+                "delta_scan('s3://some/delta/table/with/auth')",
+                "delta_scan('s3://some/delta/table/with/auth')"
+            ]
+        );
+
         Ok(())
     }
 }

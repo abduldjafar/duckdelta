@@ -38,7 +38,9 @@ impl<Exc: Engine> Pipeline<Exc> {
 
     pub async fn write_delta(&mut self, bucket_name: &str, tb_name: &str) -> Result<(), Error> {
         let sink = sinks::Delta::new(bucket_name);
-        self.enginee.delta_table_mapping(bucket_name, tb_name).await?;
+        self.enginee
+            .delta_table_mapping(bucket_name, tb_name)
+            .await?;
         sink.write(self.record_batches.as_ref().unwrap().to_vec(), tb_name)
             .await?;
         Ok(())
@@ -57,7 +59,11 @@ mod tests {
     use std::fs;
 
     use csv::Writer;
-    use deltalake::datafusion::{config::SqlParserOptions, prelude::{ParquetReadOptions, SessionContext}, sql::sqlparser::{ast, dialect::GenericDialect, parser::Parser}};
+    use deltalake::datafusion::{
+        config::SqlParserOptions,
+        prelude::{ParquetReadOptions, SessionContext},
+        sql::sqlparser::{ast, dialect::GenericDialect, parser::Parser},
+    };
     use engines::DuckDB;
 
     use super::*;
@@ -127,40 +133,5 @@ mod tests {
         fs::remove_dir_all(folder_test)?;
 
         Ok(())
-    }
-
-    #[tokio::test]
-    async fn just_test(){
-        
-
-        let sql = "SELECT a, b, 123, myfunc(b) \
-                FROM delta_scan('s3://some/delta/table/with/auth')  x left join delta_scan('s3://some/delta/table/with/auth') y on  a.id = b.id
-                ";
-
-        let dialect = GenericDialect {}; // or AnsiDialect, or your own dialect ...
-
-        let binding = Parser::parse_sql(&dialect, sql).unwrap();
-        let ast = binding.first().unwrap().clone();
-
-        
-
-        match ast {
-            ast::Statement::Query(query) => {
-                if let Some(select) = query.as_ref().body.as_select() {
-                    for data in select.from.iter() {
-                        let table = &data.relation;
-                        for join in &data.joins{
-                            println!("{}",join.relation.to_string());
-                        }
-                        
-                        println!("{}", table.to_string());
-                    }
-                } else {
-                    eprintln!("Expected a SELECT statement in the query.");
-                }
-            }
-            _ => unimplemented!(),
-        }
-        
     }
 }
