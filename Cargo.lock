@@ -1181,7 +1181,7 @@ dependencies = [
  "paste",
  "pin-project-lite",
  "rand",
- "sqlparser",
+ "sqlparser 0.51.0",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -1227,7 +1227,7 @@ dependencies = [
  "object_store",
  "parquet",
  "paste",
- "sqlparser",
+ "sqlparser 0.51.0",
  "tokio",
 ]
 
@@ -1281,7 +1281,7 @@ dependencies = [
  "indexmap",
  "paste",
  "serde_json",
- "sqlparser",
+ "sqlparser 0.51.0",
  "strum 0.26.3",
  "strum_macros 0.26.4",
 ]
@@ -1564,7 +1564,7 @@ dependencies = [
  "indexmap",
  "log",
  "regex",
- "sqlparser",
+ "sqlparser 0.51.0",
  "strum 0.26.3",
 ]
 
@@ -1711,7 +1711,7 @@ dependencies = [
  "roaring",
  "serde",
  "serde_json",
- "sqlparser",
+ "sqlparser 0.51.0",
  "thiserror 2.0.6",
  "tokio",
  "tracing",
@@ -1781,6 +1781,7 @@ dependencies = [
  "deltalake",
  "duckdb",
  "rig-core",
+ "sqlparser 0.27.0",
  "tokio",
 ]
 
@@ -4004,6 +4005,15 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+
+[[package]]
+name = "sqlparser"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aba319938d4bfe250a769ac88278b629701024fe16f34257f9563bc628081970"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "sqlparser"

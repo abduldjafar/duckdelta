@@ -19,7 +19,7 @@ pub trait Sources {
     async fn read_data(&self) -> Result<Vec<RecordBatch>, Error>;
 }
 
-impl <'a> SourcesType <'a> {
+impl<'a> SourcesType<'a> {
     async fn read(&self) -> Result<Vec<RecordBatch>, Error> {
         match self {
             SourcesType::Csv(path) => {
@@ -41,10 +41,9 @@ impl <'a> SourcesType <'a> {
     }
 }
 
-
 #[async_trait]
 impl<'a> Sources for SourcesType<'a> {
-    async fn read_data(&self) -> Result<Vec<RecordBatch>, Error>{
+    async fn read_data(&self) -> Result<Vec<RecordBatch>, Error> {
         self.read().await
     }
 }
@@ -75,8 +74,7 @@ mod tests {
         Ok(())
     }
     #[tokio::test]
-    async fn test_csv_sources()-> Result<(), Error> {
-
+    async fn test_csv_sources() -> Result<(), Error> {
         let folder_test = "test_csv_sources";
         let file1 = format!("{}/file1.csv", folder_test);
 
@@ -86,7 +84,6 @@ mod tests {
         let csv_sources = SourcesType::Csv(&file1);
         let record_batches = csv_sources.read_data().await?;
 
-
         assert!(!record_batches.is_empty());
 
         fs::remove_dir_all(folder_test)?;
@@ -94,8 +91,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_csv_sources_with_asterix()-> Result<(), Error> {
-
+    async fn test_csv_sources_with_asterix() -> Result<(), Error> {
         let folder_test = "test_csv_sources_with_asterix";
         let file1 = format!("{}/file1.csv", folder_test);
         let file2 = format!("{}/file2.csv", folder_test);
@@ -108,12 +104,9 @@ mod tests {
         let csv_sources = SourcesType::Csv(&path_for_test);
         let record_batches = csv_sources.read_data().await?;
 
-
         assert!(!record_batches.is_empty());
 
         fs::remove_dir_all(folder_test)?;
         Ok(())
     }
-
-
 }
