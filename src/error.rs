@@ -1,8 +1,4 @@
-use std::collections::HashMap;
-
-use deltalake::aws::constants::{AWS_FORCE_CREDENTIAL_LOAD, AWS_S3_ALLOW_UNSAFE_RENAME};
 use deltalake::datafusion::error::DataFusionError;
-use deltalake::datafusion::prelude::{col, SessionContext};
 
 use duckdb::Error as DuckDBError;
 
@@ -13,7 +9,7 @@ pub enum Error {
     Delta(String),
     Csv(String),
     Io(String),
-    UnsupportedFormat(String)
+    UnsupportedFormat(String),
 }
 
 impl std::fmt::Display for Error {

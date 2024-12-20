@@ -1,4 +1,4 @@
-use deltalake::arrow::array::RecordBatch;
+use deltalake::{arrow::array::RecordBatch, datafusion::prelude::SessionContext};
 use engines::Engine;
 use sinks::Sinks;
 use sources::{Sources, SourcesType};
@@ -38,19 +38,26 @@ impl<Exc: Engine> Pipeline<Exc> {
 
     pub async fn write_delta(&mut self, bucket_name: &str, tb_name: &str) -> Result<(), Error> {
         let sink = sinks::Delta::new(bucket_name);
-        self.enginee
-            .delta_table_mapping(bucket_name, tb_name)
-            .await?;
+        self.enginee.delta_table_mapping(
+            &format!("{}/{}", bucket_name, tb_name),
+            &format!("delta_{}", tb_name),
+        )?;
         sink.write(self.record_batches.as_ref().unwrap().to_vec(), tb_name)
             .await?;
         Ok(())
     }
 
     pub async fn execute_sql(&mut self, query: &str) -> Result<&mut Self, Error> {
-        // Execute the SQL query using the engine and update the record_batches
-        let result = self.enginee.sql(query).await?;
+        let result = self.enginee.sql(query)?;
         self.record_batches = Some(result);
         Ok(self)
+    }
+
+    pub async fn show(&mut self) -> Result<(), Error> {
+        let session = SessionContext::new();
+        let df = session.read_batches(self.record_batches.clone().unwrap())?;
+        df.show().await?;
+        Ok(())
     }
 }
 
@@ -59,11 +66,7 @@ mod tests {
     use std::fs;
 
     use csv::Writer;
-    use deltalake::datafusion::{
-        config::SqlParserOptions,
-        prelude::{ParquetReadOptions, SessionContext},
-        sql::sqlparser::{ast, dialect::GenericDialect, parser::Parser},
-    };
+    use deltalake::datafusion::prelude::{ParquetReadOptions, SessionContext};
     use engines::DuckDB;
 
     use super::*;
@@ -95,7 +98,7 @@ mod tests {
         //fs::remove_dir_all(folder_test)?;
         fs::create_dir(folder_test)?;
         generate_data(&file1).await?;
-        let duck_engine = DuckDB::new().await?;
+        let duck_engine = DuckDB::new()?;
 
         let mut pipeline = Pipeline::new(duck_engine).await?;
 
@@ -106,12 +109,10 @@ mod tests {
             .await?;
 
         pipeline
-            .execute_sql("SELECT 1")
+            .execute_sql("SELECT * from delta_tb_1")
             .await?
             .write_delta(&delta_place, "tb_2")
             .await?;
-
-        // Verify the contents of delta1 and delta2
 
         let ctx = SessionContext::new();
         let df1 = ctx

@@ -1,9 +1,6 @@
 use crate::error::Error;
 use async_trait::async_trait;
-use deltalake::{
-    arrow::array::RecordBatch,
-    datafusion::prelude::{CsvReadOptions, SessionContext},
-};
+use deltalake::arrow::array::RecordBatch;
 
 mod delta_sink;
 

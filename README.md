@@ -1,64 +1,67 @@
 # DuckDelta
 
-**DuckDelta** is a hybrid data solution combining the blazing-fast analytical query engine of [DuckDB](https://duckdb.org/) with the transactional capabilities and distributed storage support of [Delta Lake](https://delta.io/). DuckDelta brings the best of both worlds: efficient in-memory analytics with DuckDB and the flexibility of Delta Lake for managing large-scale, distributed datasets with features like ACID transactions, schema evolution, and `MERGE`/`UPDATE` operations.
+**DuckDelta** is a streamlined data pipeline solution designed to connect multiple data sources with [Delta Lake](https://delta.io/), leveraging the high-performance query capabilities of [DuckDB](https://duckdb.org/). With **DuckDelta**, you can efficiently process and transform data using SQL before loading it into Delta Lake, combining lightweight in-memory analytics with robust distributed storage and transactional guarantees.
 
-DuckDelta is designed for on-premise environments, enabling organizations to leverage existing infrastructure. With support for [MinIO](https://min.io/) as a storage backend, DuckDelta ensures high performance and compatibility with S3-like storage solutions.
+This tool is perfect for users who prefer SQL for data processing and seek a simple way to ingest their results into Delta Lake. While DuckDB currently supports reading Delta Lake data, **DuckDelta** bridges the gap by enabling seamless writing to Delta Lake as part of the pipeline.
+
+Optimized for on-premise environments, DuckDelta also includes built-in support for [MinIO](https://min.io/) as a storage backend, ensuring compatibility with S3-like storage solutions.
 
 ---
 
 ## Key Features
 
-- **DuckDB Analytics Engine**:
-  - Lightweight and fast analytical queries for structured data.
-  - Support for SQL queries with advanced functions and optimizations.
-  - In-memory processing for rapid insights.
+- **SQL-Based Data Processing**:
+  - Use DuckDB's SQL engine for in-memory transformations and analytics.
+  - Easily move SQL query results into Delta Lake.
 
-- **Delta Lake Capabilities**:
-  - ACID transactions for consistent data updates.
-  - Schema evolution and enforcement for structured datasets.
-  - Support for `MERGE`, `UPDATE`, and `DELETE` operations.
-  - Distributed storage compatibility (e.g., MinIO, AWS S3, Google Cloud Storage, Azure).
+- **Data Pipeline Creation**:
+  - Connect multiple data sources (CSV, Parquet, JSON, etc.) and load them into Delta Lake.
+  - Simplify ETL/ELT workflows with SQL-first design.
 
-- **Unified Interface**:
-  - Leverages DuckDB for compute and Delta Lake for storage and transactional capabilities.
-  - Query and modify Delta Lake data directly with DuckDB.
+- **Delta Lake Integration**:
+  - Write processed data directly to Delta Lake for long-term storage.
+  - Benefit from ACID transactions, schema evolution, and distributed storage support.
+
+- **Source and Storage Compatibility**:
+  - Supports popular file formats like CSV, Parquet, and JSON.
+  - Compatible with MinIO, AWS S3, Google Cloud Storage, Azure Blob Storage, and more.
 
 ---
 
 ## Use Cases
 
-- **Ad-hoc Analytics**:
-  Use DuckDB to quickly query Delta Lake data without complex cluster setups.
+- **SQL-Driven ETL Pipelines**:
+  Simplify ETL pipelines for SQL users who want to process data and load it into Delta Lake without complex setups.
 
-- **Data Lakes**:
-  Manage distributed datasets in Delta Lake format while benefiting from DuckDB's speed.
+- **Data Transformation**:
+  Perform SQL-based transformations in DuckDB and write the results to Delta Lake.
 
-- **Transactional Workflows**:
-  Enable `MERGE`/`UPDATE` operations on large datasets stored in Delta Lake.
+- **Hybrid Storage and Analytics**:
+  Combine DuckDB's in-memory speed with Delta Lake's scalable and durable storage.
 
-- **Hybrid Storage**:
-  Use MinIO or other S3-compatible storage solutions for Delta Lake datasets while performing local analytics with DuckDB.
+- **On-Premise Solutions**:
+  Use MinIO or other S3-compatible storage solutions for on-premise deployments.
 
 ---
 
 ## Roadmap
 
-- [ ] Implement core integration between DuckDB and Delta Lake.
-- [ ] Support distributed storage formats like Parquet and ORC.
-- [ ] Add support for advanced Delta Lake features (`MERGE`, `UPDATE`, `DELETE`).
-- [ ] Benchmark performance for large-scale datasets.
-- [ ] Provide support for async queries and operations.
-- [ ] Optimize for on-premise deployments with MinIO.
+- [ ] Implement connectors for popular data sources (e.g., PostgreSQL, MySQL, APIs).
+- [ ] Support advanced Delta Lake operations (`MERGE`, `UPDATE`, `DELETE`).
+- [ ] Add support for Delta Lake writes directly via DuckDelta.
+- [ ] Provide templates for SQL-driven ETL workflows.
+- [ ] Optimize for distributed storage backends like MinIO and AWS S3.
+- [ ] Add monitoring tools for pipeline execution and performance metrics.
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please follow these steps:
+We welcome contributions to **DuckDelta**! Please follow these steps:
 
 1. Fork the repository.
 2. Create a new branch for your feature or bugfix.
-3. Submit a pull request with a detailed description.
+3. Submit a pull request with a detailed description of your changes.
 
 ---
 
@@ -70,4 +73,6 @@ DuckDelta is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Acknowledgements
 
-DuckDelta is inspired by the powerful capabilities of DuckDB and Delta Lake. Special thanks to the open-source community for their contributions to these technologies.
+DuckDelta builds on the powerful capabilities of DuckDB and Delta Lake. We extend our gratitude to the open-source community for their contributions to these technologies.
+
+---
