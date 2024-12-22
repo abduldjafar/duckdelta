@@ -38,7 +38,40 @@ impl<Exc: Engine> Pipeline<Exc> {
             &format!("{}/{}", bucket_name, tb_name),
             &format!("delta_{}", tb_name),
         )?;
-        sink.write(self.record_batches.as_ref().unwrap().to_vec(), tb_name)
+
+        let data_batches = match self.record_batches.as_ref() {
+            Some(batches) => batches,
+            None => {
+                return Err(Error::Delta(
+                    "Record batches are not initialized".to_string(),
+                ))
+            }
+        };
+
+        sink.write(data_batches, tb_name).await?;
+        Ok(())
+    }
+
+    pub async fn merge_update(
+        &mut self,
+        bucket_name: &str,
+        table_path: &str,
+        key_column: &str,
+        target_column: &[&str],
+    ) -> Result<(), Error> {
+        let sink = sinks::Delta::new(bucket_name);
+        let full_path = format!("{}/{}", bucket_name, table_path);
+
+        let data_batches = match self.record_batches.as_ref() {
+            Some(batches) => batches,
+            None => {
+                return Err(Error::Delta(
+                    "Record batches are not initialized".to_string(),
+                ))
+            }
+        };
+
+        sink.merge_update(&full_path, data_batches, key_column, target_column)
             .await?;
         Ok(())
     }
@@ -76,6 +109,24 @@ mod tests {
             ["Alice", "30", "New York"],
             ["Bob", "25", "San Francisco"],
             ["Charlie", "35", "Chicago"],
+        ];
+        for row in &rows {
+            writer.write_record(row)?;
+        }
+
+        writer.flush()?;
+        Ok(())
+    }
+
+    async fn generate_second_data(file_name_str: &str) -> Result<(), Error> {
+        let mut writer = Writer::from_path(file_name_str)?;
+
+        // Write header and rows to the CSV
+        let rows = [
+            ["Name", "Age", "City"],
+            ["Alice", "12", "New York"],
+            ["Bob", "11", "San Francisco"],
+            ["Charlie", "45", "Chicago"],
         ];
         for row in &rows {
             writer.write_record(row)?;
@@ -150,28 +201,55 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_merge_update_pipeline() -> Result<(), Error> {
+        let folder_test =
+            "/Users/abdulharisdjafar/Documents/private/code/duckdelta/test_merge_update_pipeline";
+        let file1 = format!("{}/file1.csv", folder_test);
+        let file2 = format!("{}/file2.csv", folder_test);
+        let s3_delta_place = format!("s3://datalake");
+
+        // test in local
+        fs::create_dir(folder_test)?;
+        generate_data(&file1).await?;
+        generate_second_data(&file2).await?;
+        let duck_engine = DuckDB::new().await?;
+
+        let mut pipeline = Pipeline::new(duck_engine).await?;
+
+        pipeline
+            .read_csv(&file1)
+            .await?
+            .write_delta(&s3_delta_place, "tb_delta_merge")
+            .await?;
+
+        pipeline
+            .read_csv(&file1)
+            .await?
+            .write_delta(&s3_delta_place, "tb_delta_merge_2")
+            .await?;
+
+        pipeline
+            .read_csv(&file2)
+            .await?
+            .merge_update(&s3_delta_place, "tb_delta_merge", "Name", &["Age", "City"])
+            .await?;
+
+
+        pipeline
+            .execute_sql(r#"
+                select
+                    *
+                from
+                delta_tb_delta_merge_2
+            "#)
+            .await?
+            .merge_update(&s3_delta_place, "tb_delta_merge", "Name", &["Age", "City"])
+            .await?;
+
+        fs::remove_dir_all(folder_test)?;
+
+        Ok(())
+    }
 }
-
-/*
-CREATE SECRET secret4 (
-    TYPE S3,
-    PROVIDER CREDENTIAL_CHAIN,
-    CHAIN 'config',
-    USE_SSL 'false',
-    URL_STYLE 'path'
-);
-
-CREATE SECRET secret1 (
-    TYPE S3,
-    KEY_ID 'minioadmin',
-    SECRET 'minioadmin',
-    REGION 'us-east-1',
-    Endpoint 'localhost:9000',
-    URL_STYLE 'path',
-    USE_SSL false
-);
-
-SET s3_endpoint='localhost:9000';
-SET s3_access_key_id = 'minioadmin';
-SET s3_secret_access_key = 'minioadmin';
- */

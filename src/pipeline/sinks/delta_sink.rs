@@ -1,12 +1,12 @@
-use std::collections::HashMap;
-
 use aws_config::BehaviorVersion;
 use deltalake::aws::constants::{
     AWS_ALLOW_HTTP, AWS_ENDPOINT_URL, AWS_FORCE_CREDENTIAL_LOAD, AWS_S3_ALLOW_UNSAFE_RENAME,
 };
+use deltalake::datafusion::prelude::{col, SessionContext};
 use deltalake::{
     open_table, open_table_with_storage_options, DeltaOps, DeltaTable, DeltaTableError,
 };
+use std::collections::HashMap;
 
 use deltalake::arrow::array::RecordBatch;
 
@@ -25,7 +25,7 @@ async fn is_local_storage(uri: &str) -> Result<bool, DeltaTableError> {
     }
 }
 
-pub(crate) async fn write(delta_path: &str, data: Vec<RecordBatch>) -> Result<DeltaTable, Error> {
+pub(crate) async fn write(delta_path: &str, data: &Vec<RecordBatch>) -> Result<DeltaTable, Error> {
     // Check if the delta path is local or on AWS
     let is_local_storage = is_local_storage(delta_path).await?;
 
@@ -34,7 +34,7 @@ pub(crate) async fn write(delta_path: &str, data: Vec<RecordBatch>) -> Result<De
             // Write to local storage
             let table = DeltaOps::try_from_uri(delta_path)
                 .await?
-                .write(data)
+                .write(data.clone())
                 .await?;
             Ok(table)
         }
@@ -43,11 +43,39 @@ pub(crate) async fn write(delta_path: &str, data: Vec<RecordBatch>) -> Result<De
             deltalake::aws::register_handlers(None);
             let table = DeltaOps::try_from_uri_with_storage_options(delta_path, aws_config().await)
                 .await?
-                .write(data)
+                .write(data.clone())
                 .await?;
             Ok(table)
         }
     }
+}
+
+pub(crate) async fn merge_update(
+    table_path: &str,
+    data_batches: &Vec<RecordBatch>,
+    key_column: &str,
+    target_column: &[&str],
+) -> Result<(), Error> {
+    let ctx = SessionContext::new();
+    let source = ctx.read_batches(data_batches.clone())?;
+    let table = open_delta_table(table_path).await?;
+    DeltaOps(table)
+        .merge(
+            source,
+            col(format!("target.\"{}\"", key_column)).eq(col(format!("source.\"{}\"", key_column))),
+        )
+        .with_source_alias("source")
+        .with_target_alias("target")
+        .when_matched_update(|mut update| {
+            for target in target_column {
+                let cleaned_target = format!("\"{}\"", target);
+                update = update.update(&cleaned_target, col(format!("source.{}", cleaned_target)));
+            }
+            update
+        })?
+        .await?;
+
+    Ok(())
 }
 
 /// strips file:/// prefix from the uri
@@ -64,7 +92,7 @@ async fn strip_file_prefix(uri: &str) -> Result<&str, DeltaTableError> {
     }
 }
 
-async fn _open_delta_table(uri: &str) -> Result<DeltaTable, DeltaTableError> {
+async fn open_delta_table(uri: &str) -> Result<DeltaTable, DeltaTableError> {
     let is_local_storage = is_local_storage(uri).await?;
     if is_local_storage {
         open_table(uri).await
