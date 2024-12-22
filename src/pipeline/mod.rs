@@ -23,17 +23,13 @@ impl<Exc: Engine> Pipeline<Exc> {
     }
 
     pub async fn read_csv(&mut self, path: &str) -> Result<&mut Self, Error> {
-        let path_splitted: Vec<&str> = path.split(".").collect();
-        let record_batches = match path_splitted.last().unwrap().to_lowercase().as_str() {
-            "csv" => {
-                let data = SourcesType::Csv(path);
-
-                data.read_data().await?
-            }
-            _ => return Err(Error::UnsupportedFormat(path.to_string())),
-        };
-        self.record_batches = Some(record_batches);
-        Ok(self)
+        if path.ends_with(".csv") {
+            let data = SourcesType::Csv(path);
+            self.record_batches = Some(data.read_data().await?);
+            Ok(self)
+        } else {
+            Err(Error::UnsupportedFormat(path.to_string()))
+        }
     }
 
     pub async fn write_delta(&mut self, bucket_name: &str, tb_name: &str) -> Result<(), Error> {
@@ -93,25 +89,44 @@ mod tests {
     async fn test_pipeline() -> Result<(), Error> {
         let folder_test = "/Users/abdulharisdjafar/Documents/private/code/duckdelta/test_pipeline";
         let file1 = format!("{}/file1.csv", folder_test);
-        let delta_place = format!("file://{}", folder_test);
+        let local_delta_place = format!("file://{}", folder_test);
+        let s3_delta_place = format!("s3://datalake");
 
-        //fs::remove_dir_all(folder_test)?;
+        // test in local
         fs::create_dir(folder_test)?;
         generate_data(&file1).await?;
-        let duck_engine = DuckDB::new()?;
+        let duck_engine = DuckDB::new().await?;
 
         let mut pipeline = Pipeline::new(duck_engine).await?;
 
         pipeline
             .read_csv(&file1)
             .await?
-            .write_delta(&delta_place, "tb_1")
+            .write_delta(&s3_delta_place, "tb_delta")
+            .await?;
+
+        pipeline
+            .execute_sql("SELECT * from delta_tb_delta")
+            .await?
+            .write_delta(&s3_delta_place, "tb_from_delta")
+            .await?;
+
+        pipeline
+            .read_csv(&file1)
+            .await?
+            .write_delta(&local_delta_place, "tb_1")
             .await?;
 
         pipeline
             .execute_sql("SELECT * from delta_tb_1")
             .await?
-            .write_delta(&delta_place, "tb_2")
+            .write_delta(&local_delta_place, "tb_2")
+            .await?;
+
+        pipeline
+            .read_csv(&file1)
+            .await?
+            .write_delta(&s3_delta_place, "tb_1")
             .await?;
 
         let ctx = SessionContext::new();
@@ -136,3 +151,27 @@ mod tests {
         Ok(())
     }
 }
+
+/*
+CREATE SECRET secret4 (
+    TYPE S3,
+    PROVIDER CREDENTIAL_CHAIN,
+    CHAIN 'config',
+    USE_SSL 'false',
+    URL_STYLE 'path'
+);
+
+CREATE SECRET secret1 (
+    TYPE S3,
+    KEY_ID 'minioadmin',
+    SECRET 'minioadmin',
+    REGION 'us-east-1',
+    Endpoint 'localhost:9000',
+    URL_STYLE 'path',
+    USE_SSL false
+);
+
+SET s3_endpoint='localhost:9000';
+SET s3_access_key_id = 'minioadmin';
+SET s3_secret_access_key = 'minioadmin';
+ */

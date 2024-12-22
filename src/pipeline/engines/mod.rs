@@ -1,5 +1,6 @@
 use crate::error::Error;
 use async_trait::async_trait;
+use aws_config::BehaviorVersion;
 use deltalake::datafusion::sql::sqlparser::{ast, dialect::GenericDialect, parser::Parser};
 use duckdb::{arrow::array::RecordBatch, params, Connection};
 use regex::Regex;
@@ -20,7 +21,55 @@ struct DeltaMapping {
 }
 
 impl DuckDB {
-    pub fn new() -> Result<Self, Error> {
+    fn strip_protocol(url: &str) -> String {
+        let re = Regex::new(r"^(https?://)").unwrap();
+        re.replace(url, "").to_string()
+    }
+
+    async fn query_for_setup_aws_conn() -> String {
+        let config = aws_config::load_defaults(BehaviorVersion::v2024_03_28()).await;
+        let credentials_provider = config.credentials_provider().unwrap();
+        let credentials = credentials_provider
+            .as_ref()
+            .provide_credentials()
+            .await
+            .unwrap();
+
+        let mut use_ssl = "".to_string();
+        let secret = format!("SECRET '{}',", credentials.secret_access_key());
+        let key_id = format!("KEY_ID '{}',", credentials.access_key_id());
+        let region = format!("REGION '{}',", config.region().unwrap().to_string());
+        let url_style = "URL_STYLE 'path',".to_string();
+        let endpoint = match config.endpoint_url() {
+            Some(endpoint) => {
+                let new_endpoint = Self::strip_protocol(endpoint);
+                if endpoint.starts_with("https://") {
+                    use_ssl = "USE_SSL true".to_string();
+                } else {
+                    use_ssl = "USE_SSL false".to_string();
+                }
+                format!("Endpoint '{}',", new_endpoint)
+            }
+            None => format!(""),
+        };
+
+        format!(
+            r#"
+        CREATE SECRET secret1 (
+            TYPE S3,
+            {}
+            {}
+            {}
+            {}
+            {}
+            {}
+        );
+        "#,
+            key_id, secret, region, endpoint, url_style, use_ssl
+        )
+    }
+
+    pub async fn new() -> Result<Self, Error> {
         let conn = match Connection::open_in_memory() {
             Ok(conn) => conn,
             Err(e) => return Err(Error::DuckDB(format!("Failed to open connection: {}", e))),
@@ -41,7 +90,14 @@ impl DuckDB {
             return Err(Error::DuckDB(format!("Failed to create table: {}", e)));
         }
 
-        // Return the struct with the connection
+        let aws_conn_query = Self::query_for_setup_aws_conn().await;
+        if let Err(e) = conn.execute_batch(&aws_conn_query) {
+            return Err(Error::DuckDB(format!(
+                "Failed to setup AWS connection: {}",
+                e
+            )));
+        }
+
         Ok(Self { connection: conn })
     }
 
@@ -126,6 +182,8 @@ impl Engine for DuckDB {
             Err(e) => return Err(Error::DuckDB(format!("Failed to parse SQL: {}", e))),
         };
 
+        println!("{}", parsed_sql);
+
         let mut stmt = self.connection.prepare(&parsed_sql)?;
         let arrow_result = stmt.query_arrow([])?;
         let batches = arrow_result.collect::<Vec<RecordBatch>>();
@@ -144,7 +202,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delta_table_mapping() -> Result<(), Error> {
-        let duck_engine = DuckDB::new()?;
+        let duck_engine = DuckDB::new().await?;
         duck_engine.delta_table_mapping("delta_path", "duck_table")?;
         let result = duck_engine.sql("SELECT * FROM delta_mapping");
 
@@ -158,7 +216,7 @@ mod tests {
         let sql = r#"select * from delta_auth y left join delta_auth b  on a.id = b.id"#;
         let sql2 = r#"select * from delta_auths y left join delta_auth b  on a.id = b.id"#;
 
-        let duck_engine = DuckDB::new()?;
+        let duck_engine = DuckDB::new().await?;
 
         duck_engine.delta_table_mapping("s3://some/delta/table/with/auth", "delta_auth")?;
         duck_engine.delta_table_mapping("s3://some/delta/table/with/auth", "delta_auth")?;
