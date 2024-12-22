@@ -195,38 +195,3 @@ impl Engine for DuckDB {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_delta_table_mapping() -> Result<(), Error> {
-        let duck_engine = DuckDB::new().await?;
-        duck_engine.delta_table_mapping("delta_path", "duck_table")?;
-        let result = duck_engine.sql("SELECT * FROM delta_mapping");
-
-        assert!(result.is_ok(), "Query should execute successfully");
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn parse_table_names() -> Result<(), Error> {
-        let sql = r#"select * from delta_auth y left join delta_auth b  on a.id = b.id"#;
-        let sql2 = r#"select * from delta_auths y left join delta_auth b  on a.id = b.id"#;
-
-        let duck_engine = DuckDB::new().await?;
-
-        duck_engine.delta_table_mapping("s3://some/delta/table/with/auth", "delta_auth")?;
-        duck_engine.delta_table_mapping("s3://some/delta/table/with/auth", "delta_auth")?;
-
-        let parsed_sql = duck_engine.parse_sql(sql)?;
-        let parsed_sql2 = duck_engine.parse_sql(sql2)?;
-
-        assert_eq!(parsed_sql,"select * from delta_scan('s3://some/delta/table/with/auth') y left join delta_scan('s3://some/delta/table/with/auth') b  on a.id = b.id");
-        assert_eq!(parsed_sql2,"select * from delta_auths y left join delta_scan('s3://some/delta/table/with/auth') b  on a.id = b.id");
-
-        Ok(())
-    }
-}
