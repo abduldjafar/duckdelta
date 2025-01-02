@@ -1,8 +1,6 @@
-
 use async_trait::async_trait;
 use deltalake::arrow::array::RecordBatch;
 use duckdb::Connection;
-
 
 use crate::error::Error;
 
