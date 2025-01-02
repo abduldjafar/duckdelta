@@ -11,7 +11,7 @@ pub trait Engine {
 }
 
 pub struct DuckDB {
-    connection: Connection,
+    pub connection: Connection,
 }
 
 #[derive(Debug)]

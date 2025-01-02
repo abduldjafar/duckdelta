@@ -48,3 +48,15 @@ impl From<std::io::Error> for Error {
         Error::Io(value.to_string())
     }
 }
+
+impl From<tokio::task::JoinError> for Error {
+    fn from(value: tokio::task::JoinError) -> Self {
+        Error::Io(value.to_string())
+    }
+}
+
+impl From<deltalake::arrow::error::ArrowError> for Error {
+    fn from(value: deltalake::arrow::error::ArrowError) -> Self {
+        Error::Io(value.to_string())
+    }
+}

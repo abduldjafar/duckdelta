@@ -18,3 +18,4 @@ rig-core = "0.5.0"
 async-trait = { version = "0.1" }
 sqlparser = "=0.27.0"
 regex = "1.11.1"
+arrow-tools = "0.20.0"

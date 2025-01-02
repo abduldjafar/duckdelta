@@ -327,6 +327,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrow-tools"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2bcdd6b1faf9c33f2a4fe36cfbab463efea33df924d7dc920b26bd6b4efced2"
+
+[[package]]
 name = "async-compression"
 version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1775,6 +1781,7 @@ dependencies = [
 name = "duckdelta"
 version = "0.1.0"
 dependencies = [
+ "arrow-tools",
  "async-trait",
  "aws-config",
  "csv",

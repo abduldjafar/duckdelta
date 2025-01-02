@@ -1,9 +1,8 @@
-use async_trait::async_trait;
 
-use deltalake::{
-    arrow::array::RecordBatch,
-    datafusion::prelude::{CsvReadOptions, SessionContext},
-};
+use async_trait::async_trait;
+use deltalake::arrow::array::RecordBatch;
+use duckdb::Connection;
+
 
 use crate::error::Error;
 
@@ -20,16 +19,23 @@ pub trait Sources {
 }
 
 impl<'a> SourcesType<'a> {
+    async fn read_by_duckdb(tb_path: &str) -> Result<Vec<RecordBatch>, Error> {
+        let sql = format!("select * from read_csv('{}')", tb_path);
+        let conn = Connection::open_in_memory()?;
+
+        let mut stmt = conn.prepare(&sql)?;
+        let arrow_result = stmt.query_arrow([])?;
+        let batches = arrow_result.collect::<Vec<RecordBatch>>();
+
+        Ok(batches)
+    }
+
     async fn read(&self) -> Result<Vec<RecordBatch>, Error> {
         match self {
             SourcesType::Csv(path) => {
                 let path_splitted: Vec<&str> = path.split(".").collect();
                 let record_batches = match path_splitted.last().unwrap().to_lowercase().as_str() {
-                    "csv" => {
-                        let ctx = SessionContext::new();
-                        let df = ctx.read_csv(*path, CsvReadOptions::new()).await?;
-                        df.collect().await?
-                    }
+                    "csv" => Self::read_by_duckdb(path).await?,
                     _ => return Err(Error::UnsupportedFormat(path.to_string())),
                 };
                 Ok(record_batches)
